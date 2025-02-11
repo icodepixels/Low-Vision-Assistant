@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Vision Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+        }
+        #result-container {
+            position: relative;
+            margin-top: 20px;
+        }
+        #result-image {
+            max-width: 100%;
+        }
+        .detection-box {
+            position: absolute;
+            border: 3px solid #FF0000;
+            background-color: rgba(255, 0, 0, 0.2);
+        }
+        .detection-label {
+            position: absolute;
+            background-color: #FF0000;
+            color: white;
+            padding: 2px 6px;
+            font-size: 14px;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Low Vision Assistant</h1>
+    <button id="captureBtn">Capture Image</button>
+    <div id="result-container"></div>
+
+    <script>
+        document.getElementById('captureBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/capture', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    // Clear previous results
+                    const container = document.getElementById('result-container');
+                    container.innerHTML = '';
+
+                    // Create image element
+                    const img = document.createElement('img');
+                    img.src = data.image;
+                    img.id = 'result-image';
+                    container.appendChild(img);
+
+                    // Wait for image to load before adding detection boxes
+                    img.onload = () => {
+                        // Add detection boxes
+                        data.detections.forEach(detection => {
+                            const [x, y, width, height] = detection.box;
+
+                            // Create box
+                            const box = document.createElement('div');
+                            box.className = 'detection-box';
+                            box.style.left = `${x}px`;
+                            box.style.top = `${y}px`;
+                            box.style.width = `${width - x}px`;
+                            box.style.height = `${height - y}px`;
+
+                            // Create label
+                            const label = document.createElement('div');
+                            label.className = 'detection-label';
+                            label.textContent = `${detection.label} (${detection.confidence})`;
+                            label.style.left = `${x}px`;
+                            label.style.top = `${y - 20}px`;
+
+                            container.appendChild(box);
+                            container.appendChild(label);
+                        });
+                    };
+
+                    // Play audio description with error handling
+                    try {
+                        const audio = new Audio(data.audio);
+                        audio.onerror = (e) => {
+                            console.error('Audio playback error:', e);
+                            alert('Audio playback failed. The detected objects are: ' +
+                                  data.detections.map(d => d.label).join(', '));
+                        };
+                        await audio.play();
+                    } catch (audioError) {
+                        console.error('Audio playback error:', audioError);
+                        alert('Audio playback failed. The detected objects are: ' +
+                              data.detections.map(d => d.label).join(', '));
+                    }
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error: ' + error);
+            }
+        });
+
+        // Clean up when leaving the page
+        window.addEventListener('beforeunload', () => {
+            fetch('/release', { method: 'POST' });
+        });
+    </script>
+</body>
+</html>
