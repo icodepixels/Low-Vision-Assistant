@@ -24,7 +24,10 @@ OPENAI_API_KEY=your_api_key_here
 
 1. Run the application:
 ```bash
-python vision_app.py
+workon python10.3.12 or python3.10.12
+```
+```bash
+python app.py
 ```
 
 2. Controls:
